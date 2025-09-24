@@ -1,30 +1,32 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
+from .models import *
+from django.contrib.auth.admin import UserAdmin
 
-@admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    # Personalizando os campos que aparecem no formulário de edição do usuário
+class AdminCustomUser(UserAdmin):
+    model = CustomUser
+    list_display = ['id', 'email', 'nif']
+    list_display_links = ('id', 'email', 'nif',)
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
-        ('Informações Pessoais', {'fields': ('nome', 'cpf', 'cargo')}),
-        ('Permissões', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Datas importantes', {'fields': ('last_login',)}),
+        (None, {'fields': ('email','password')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 
+                                    'is_superuser', 'groups', 
+                                    'user_permissions',)}),
+        ('User data', {'fields': ('nif', 'phone','creation_date',)}),
     )
-
-    # Personalizando os campos para o formulário de criação de novo usuário
+    filter_horizontal = ('groups', 'user_permissions',)
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'nome', 'cpf', 'cargo', 'password1', 'password2'),
+            'fields': ('email','name','nif','password1','password2'),
         }),
     )
+    ordering = ['email']
 
-    # Personalizando como os usuários serão listados no painel do admin
-    list_display = ('email', 'nome', 'cpf', 'cargo', 'is_staff')
-
-    # Permitir busca por email, nome, cpf e cargo
-    search_fields = ('email', 'nome', 'cpf', 'cargo')
-
-    # Ordenar a lista de usuários por email
-    ordering = ('email',)
+admin.site.register(CustomUser, AdminCustomUser)
+admin.site.register(Environment)
+admin.site.register(Category)
+admin.site.register(Equipment)
+admin.site.register(Task)
+admin.site.register(TaskStatus)
+admin.site.register(TaskStatusImage)
+admin.site.register(Notification)
