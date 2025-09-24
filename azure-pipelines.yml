@@ -1,9 +1,0 @@
-trigger:
-- main 
-
-pool:
-  vmImage: 'ubuntu-latest'
-
-steps:
-- checkout: self  
-- script: echo "Código baixado do GitHub e pipeline rodando"
