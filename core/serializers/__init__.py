@@ -8,6 +8,6 @@ from .notification import *
 
 __all__ = [
     'CategorySerializer', 'EnvironmentSerializer', 'EquipmentSerializer', 
-    'TaskSerializer', 'TaskStatusSerializer', 'TaskStatusImageSerializer', 
+    'TaskReadSerializer', 'TaskWriteSerializer', 'TaskStatusSerializer', 'TaskStatusImageSerializer', 
     'CustomUserSerializer', 'NotificationSerializer'
 ]

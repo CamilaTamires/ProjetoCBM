@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from ..models import *
+from ..models import Environment
 
 class EnvironmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Environment
-        fields = '__all__'
+        fields = ['id', 'name']
         many= True
