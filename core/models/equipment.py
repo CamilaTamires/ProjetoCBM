@@ -5,6 +5,11 @@ class Equipment(models.Model):
     code = models.CharField(max_length=50)
     description = models.CharField(max_length=500)
     creation_date = models.DateTimeField(auto_now_add=True)
+    
+    # campo para armazenar o QR gerado
+    qr_code_image = models.ImageField(upload_to='equipment_qr/', blank=True, null=True)
+
+    
     category_FK = models.ForeignKey('Category', 
                                 related_name='Equipment_category_FK',
                                 on_delete=models.SET_NULL,
