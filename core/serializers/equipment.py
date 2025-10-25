@@ -1,7 +1,5 @@
 from rest_framework import serializers
 from ..models import Equipment
-
-# Importamos os serializers dos quais este depende
 from .category import CategorySerializer
 from .environment import EnvironmentSerializer
 

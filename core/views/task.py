@@ -1,12 +1,12 @@
 # DENTRO DO ARQUIVO: core/views.py
 from rest_framework import viewsets
 from ..models.task import Task
-# Importe os DOIS serializers de Task
+from rest_framework import permissions
 from ..serializers.task import TaskReadSerializer, TaskWriteSerializer
 
 class TaskView(viewsets.ModelViewSet):
     queryset = Task.objects.all()
-    # serializer_class = TaskSerializer # Apague ou comente esta linha
+    permission_classes = [permissions.DjangoModelPermissions]
 
     # Este método mágico escolhe o serializer correto com base na ação
     def get_serializer_class(self):

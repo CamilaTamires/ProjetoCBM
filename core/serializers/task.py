@@ -1,16 +1,15 @@
 from rest_framework import serializers
-from ..models import Task, TaskStatus
+from ..models import Task
 
 # Importamos os serializers que a versão de LEITURA irá usar
 from .custom_user import CustomUserSerializer
 from .equipment import EquipmentSerializer
+from .task_status import TaskStatusSerializer
 
-# NOVO: Serializer simples, apenas para CRIAR e ATUALIZAR tasks.
-# Ele entende os IDs que o formulário envia.
+# Serializer de Escrita 
 class TaskWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
-        # Inclui todos os campos do model, que por padrão aceitam IDs para FKs.
         fields = [
             'name', 
             'description', 
@@ -21,15 +20,16 @@ class TaskWriteSerializer(serializers.ModelSerializer):
             'responsibles_FK'
         ]
 
-# Serializer complexo para LEITURA (o que já tínhamos, agora renomeado)
+# Serializer de Leitura MODIFICADO
 class TaskReadSerializer(serializers.ModelSerializer):
-    # Usando os serializers aninhados para mostrar os dados completos
     creator_FK = CustomUserSerializer(read_only=True, allow_null=True)
     equipments_FK = EquipmentSerializer(many=True, read_only=True)
     responsibles_FK = CustomUserSerializer(many=True, read_only=True)
-    
-    # Campo "calculado" para o status
-    current_status = serializers.SerializerMethodField()
+    status_history = TaskStatusSerializer(
+        many=True, 
+        read_only=True, 
+        source='TaskStatus_task_FK' # Usa o related_name do ForeignKey
+    ) 
 
     class Meta:
         model = Task
@@ -43,11 +43,5 @@ class TaskReadSerializer(serializers.ModelSerializer):
             'creator_FK', 
             'equipments_FK', 
             'responsibles_FK',
-            'current_status'
+            'status_history' 
         ]
-
-    def get_current_status(self, obj: Task):
-        latest_status = TaskStatus.objects.filter(task_FK=obj).order_by('-status_date').first()
-        if latest_status:
-            return latest_status.status
-        return None
