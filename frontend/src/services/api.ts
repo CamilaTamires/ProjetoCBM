@@ -5,14 +5,14 @@ import type {
   Equipment,
   TaskStatus,
   TaskPayload,
-  TaskStatusPayload, // <-- Verifique se este import está aqui
+  TaskStatusPayload,
 } from '../types/api'
 
 const apiClient = axios.create({
   baseURL: 'http://localhost:8000/api',
 })
 
-// --- NOVO: Interceptor para adicionar o token de autenticação ---
+// --- Interceptor para adicionar o token de autenticação ---
 // Esta função "intercepta" todas as requisições antes de serem enviadas
 // e adiciona o token de autenticação no cabeçalho.
 apiClient.interceptors.request.use(
@@ -29,25 +29,25 @@ apiClient.interceptors.request.use(
 )
 
 export default {
-  // --- NOVA FUNÇÃO DE LOGIN ---
+  // --- FUNÇÃO DE LOGIN ---
   login: (credentials: { email: string; password: string }) => {
     // Djoser usa o endpoint 'token/login' para autenticação baseada em token
     return apiClient.post<{ auth_token: string }>('/auth/token/login/', credentials)
   },
 
-  // --- NOVA FUNÇÃO DE LOGOUT ---
+  // --- FUNÇÃO DE LOGOUT ---
   logout: () => {
     // Djoser usa o endpoint 'token/logout' para invalidar o token no backend
     return apiClient.post('/auth/token/logout/')
   },
 
-  // --- NOVA FUNÇÃO DE REGISTRO ---
+  // --- FUNÇÃO DE REGISTRO ---
   register: (userData: { name: string, email: string, nif: string, password: string }) => {
     // Ele espera 'name', 'email', 'nif', 'password' 
     return apiClient.post<CustomUser>('/auth/users/', userData); 
   },
 
-  // --- NOVA FUNÇÃO PARA BUSCAR DADOS DO USUÁRIO LOGADO ---
+  // --- FUNÇÃO PARA BUSCAR DADOS DO USUÁRIO LOGADO ---
   getMe: () => {
     // O interceptor adicionará o token automaticamente a esta requisição GET
     return apiClient.get<CustomUser>('/auth/users/me/');
@@ -64,18 +64,15 @@ export default {
   getUsers: () => apiClient.get<CustomUser[]>('/custom-user/'),
   getEquipments: () => apiClient.get<Equipment[]>('/equipment/'),
 
-  // ESTA É A FUNÇÃO QUE O ERRO ESTÁ APONTANDO
-  // Garanta que ela esteja dentro do objeto 'export default'
+  // Função para criar TaskStatus com fluxo de upload de imagem em duas etapas
   createTaskStatus: (payload: TaskStatusPayload) => {
     // Etapa 1: Envia o JSON, espera o novo TaskStatus de volta
     return apiClient.post<TaskStatus>('/task-status/', payload)
   },
 
-  // NOVA FUNÇÃO para Etapa 3: Upload da Imagem
+  // Upload da Imagem
   uploadTaskStatusImage: (payload: FormData) => {
-    // O Axios é inteligente: quando ele vê um FormData, ele
-    // automaticamente usa 'multipart/form-data'.
-    // O interceptor de token ainda será aplicado.
+    // Etapa 2: Envia a imagem associada ao TaskStatus criado
     return apiClient.post('/task-status-image/', payload)
   },
 }

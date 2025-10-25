@@ -1,22 +1,35 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '../services/api';
-import type { CustomUser, Equipment } from '../types/api';
+import { useRouter, useRoute } from 'vue-router';
+import api from '../../services/api';
+import type { CustomUser, Equipment } from '../../types/api';
 
 const router = useRouter();
+const route = useRoute();
+const taskId = Number(route.params.id);
 
-// --- Estado para os dados do formulário ---
-// Usaremos 'any' temporariamente para simplificar o envio dos dados
-const taskData = ref({
+// --- INTERFACE PARA OS DADOS DO FORMULÁRIO ---
+interface TaskFormData {
+  name: string;
+  description: string;
+  suggested_date: string;
+  suggested_time: string;
+  urgency_level: string;
+  creator_FK: number | null; 
+  equipments_FK: number[];     
+  responsibles_FK: number[];  
+}
+
+// --- Estado para os dados do formulário, agora usando a nova interface ---
+const taskData = ref<TaskFormData>({
   name: '',
   description: '',
   suggested_date: '',
   suggested_time: '',
   urgency_level: 'LOW',
   creator_FK: null,
-  equipments_FK: [], // Para select múltiplo
-  responsibles_FK: [], // Para select múltiplo
+  equipments_FK: [],
+  responsibles_FK: [],
 });
 
 // --- Estado para as opções dos menus <select> ---
@@ -28,63 +41,76 @@ const urgencyLevels = [
   { value: 'HIGH', text: 'Alto' },
 ];
 
-// --- Carregar dados para os menus quando o componente é montado ---
 onMounted(async () => {
+  if (!taskId) {
+    alert('ID da tarefa não encontrado.');
+    router.push('/');
+    return;
+  }
+  
   try {
-    const usersResponse = await api.getUsers();
-    users.value = usersResponse.data;
+    const [taskResponse, usersResponse, equipmentsResponse] = await Promise.all([
+      api.getTask(taskId),
+      api.getUsers(),
+      api.getEquipments()
+    ]);
 
-    const equipmentsResponse = await api.getEquipments();
+    users.value = usersResponse.data;
     equipments.value = equipmentsResponse.data;
+
+    const fetchedTask = taskResponse.data;
+    const suggestedDateTime = fetchedTask.suggested_date ? new Date(fetchedTask.suggested_date) : null;
+
+    taskData.value = {
+      name: fetchedTask.name,
+      description: fetchedTask.description,
+      suggested_date: suggestedDateTime ? suggestedDateTime.toISOString().split('T')[0] : '',
+      suggested_time: suggestedDateTime ? suggestedDateTime.toTimeString().split(' ')[0].substring(0, 5) : '',
+      urgency_level: fetchedTask.urgency_level,
+      creator_FK: fetchedTask.creator_FK?.id || null,
+      equipments_FK: fetchedTask.equipments_FK.map(e => e.id),
+      responsibles_FK: fetchedTask.responsibles_FK.map(r => r.id),
+    };
+
   } catch (error) {
-    console.error('Falha ao carregar dados para o formulário:', error);
-    alert('Não foi possível carregar as opções de usuários e equipamentos.');
+    console.error('Falha ao carregar dados para edição:', error);
+    alert('Não foi possível carregar os dados da tarefa.');
   }
 });
 
-// --- Lógica de envio do formulário ---
 async function handleSubmit() {
-  // Combina data e hora em um formato ISO 8601 que o Django entende
   const suggestedDateTime = taskData.value.suggested_date && taskData.value.suggested_time
     ? `${taskData.value.suggested_date}T${taskData.value.suggested_time}`
     : null;
 
-  // Monta o payload final para a API
   const payload = {
-    name: taskData.value.name,
-    description: taskData.value.description,
-    suggested_date: suggestedDateTime,
-    urgency_level: taskData.value.urgency_level,
-    creator_FK: taskData.value.creator_FK,
-    equipments_FK: taskData.value.equipments_FK,
-    responsibles_FK: taskData.value.responsibles_FK,
+    ...taskData.value, // Copia todos os dados do formulário
+    suggested_date: suggestedDateTime, // Sobrescreve com a data combinada
   };
   
   try {
-    await api.createTask(payload);
-    alert('Chamado criado com sucesso!');
-    router.push('/'); // Redireciona para o dashboard
+    await api.updateTask(taskId, payload);
+    alert('Chamado atualizado com sucesso!');
+    router.push('/');
   } catch (error) {
-    console.error('Falha ao criar o chamado:', error);
-    alert('Não foi possível criar o chamado. Verifique os campos.');
+    console.error('Falha ao atualizar o chamado:', error);
+    alert('Não foi possível atualizar o chamado.');
   }
 }
 </script>
 
 <template>
   <div class="form-container">
-    <h1>Adicionar Task</h1>
+    <h1>Editar Task #{{ taskId }}</h1>
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="name">Name:</label>
         <input id="name" v-model="taskData.name" type="text" required />
       </div>
-
       <div class="form-group">
         <label for="description">Description:</label>
         <textarea id="description" v-model="taskData.description"></textarea>
       </div>
-
       <div class="form-group date-time-group">
         <div class="date-input">
           <label for="suggested_date">Data:</label>
@@ -95,7 +121,6 @@ async function handleSubmit() {
           <input id="suggested_time" v-model="taskData.suggested_time" type="time" />
         </div>
       </div>
-
       <div class="form-group">
         <label for="urgency_level">Urgency level:</label>
         <select id="urgency_level" v-model="taskData.urgency_level">
@@ -104,7 +129,6 @@ async function handleSubmit() {
           </option>
         </select>
       </div>
-
       <div class="form-group">
         <label for="creator_FK">Creator:</label>
         <select id="creator_FK" v-model="taskData.creator_FK">
@@ -114,7 +138,6 @@ async function handleSubmit() {
           </option>
         </select>
       </div>
-
       <div class="form-group">
         <label for="equipments_FK">Equipments:</label>
         <select id="equipments_FK" v-model="taskData.equipments_FK" multiple>
@@ -124,7 +147,6 @@ async function handleSubmit() {
         </select>
         <small>Pressione "Control" ou "Command" para selecionar mais de um.</small>
       </div>
-
       <div class="form-group">
         <label for="responsibles_FK">Responsibles:</label>
         <select id="responsibles_FK" v-model="taskData.responsibles_FK" multiple>
@@ -134,9 +156,8 @@ async function handleSubmit() {
         </select>
         <small>Pressione "Control" ou "Command" para selecionar mais de um.</small>
       </div>
-
       <div class="form-actions">
-        <button type="submit" class="submit-button">Salvar Task</button>
+        <button type="submit" class="submit-button">Atualizar Task</button>
         <router-link to="/" class="cancel-button">Cancelar</router-link>
       </div>
     </form>
@@ -144,7 +165,7 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
-/* Estilos que você já tinha, adaptados para todos os campos */
+/* Seus estilos aqui... */
 .form-container { max-width: 600px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
 .form-group { margin-bottom: 1.5rem; }
 label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
@@ -153,7 +174,7 @@ select[multiple] { height: 120px; }
 .date-time-group { display: flex; gap: 1rem; }
 .date-time-group > div { flex: 1; }
 .form-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
-.submit-button { background: #38e07b; color: #0e1a13; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: bold; }
+.submit-button { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: bold; }
 .cancel-button { background: #ccc; color: #0e1a13; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 8px; }
 small { margin-top: 0.5rem; color: #666; display: block; }
 </style>

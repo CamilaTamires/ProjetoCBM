@@ -6,6 +6,9 @@ class AdminCustomUser(UserAdmin):
     model = CustomUser
     list_display = ['id', 'email', 'nif']
     list_display_links = ('id', 'email', 'nif',)
+
+    readonly_fields = ('creation_date',)
+    
     fieldsets = (
         (None, {'fields': ('email','password')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 

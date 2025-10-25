@@ -1,5 +1,3 @@
-// DENTRO DO ARQUIVO: src/types/api.ts
-
 export interface Category {
   id: number;
   name: string;
@@ -23,9 +21,11 @@ export interface Equipment {
   description: string;
   environment_FK: Environment | null;
   category_FK: Category | null;
+  qr_code_image: string | null;
 }
 
-export type TaskStatus = 'OPEN' | 'WAITING_RESPONSIBLE' | 'ONGOING' | 'DONE' | 'FINISHED' | 'CANCELLED';
+// Este é o tipo para os *valores* de status
+export type TaskStatusValue = 'OPEN' | 'WAITING_RESPONSIBLE' | 'ONGOING' | 'DONE' | 'FINISHED' | 'CANCELLED';
 
 export interface Task {
   id: number;
@@ -34,10 +34,10 @@ export interface Task {
   suggested_date: string | null;
   urgency_level: string;
   creation_date: string;
-  current_status: TaskStatus | null;
   creator_FK: CustomUser | null;
   equipments_FK: Equipment[];
   responsibles_FK: CustomUser[];
+  status_history: TaskStatus[];
 }
 
 export interface TaskPayload {
@@ -50,11 +50,29 @@ export interface TaskPayload {
   responsibles_FK: number[];
 }
 
-// --- ESTA É A INTERFACE QUE ESTAVA FALTANDO ---
-// Descreve o objeto que enviamos para criar um novo registro de status
 export interface TaskStatusPayload {
   status: string;
   comment: string | null;
   task_FK: number;
   user_FK: number;
+}
+
+// Para a funcionalidade de upload de imagem
+// Descreve a resposta da API para uma imagem de status
+export interface TaskStatusImage {
+  id: number;
+  image: string; // O backend envia a URL da imagem
+  task_status_FK: number;
+}
+
+// Descreve a resposta da API para um objeto TaskStatus
+export interface TaskStatus {
+  id: number;
+  status: TaskStatusValue;
+  status_date: string;
+  comment: string | null;
+  task_FK: number;
+  // user_FK: CustomUser | null;
+  user_detail: CustomUser | null;
+  images: TaskStatusImage[]; // O campo 'images' que definimos no serializer
 }

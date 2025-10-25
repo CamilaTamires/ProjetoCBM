@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { useAuth } from '@/store/auth'; // Importe nosso gerenciador de autenticação
+import { useAuth } from '@/stores/auth'; // Importe nosso gerenciador de autenticação
 import DashboardView from '../views/DashboardView.vue';
 import CreateTaskView from '../views/tasks/CreateTaskView.vue';
 import LoginView from '../views/auth/LoginView.vue'; // Importe a nova view de login
@@ -12,21 +12,19 @@ const router = createRouter({
       path: '/',
       name: 'dashboard',
       component: DashboardView,
-      meta: { requiresAuth: true } // NOVO: Marcamos esta rota como protegida
+      meta: { requiresAuth: true } 
     },
     {
-      path: '/login', // NOVO: Rota para a página de login
+      path: '/login', // Rota para a página de login
       name: 'login',
       component: LoginView
     },
-    // --- NOVA ROTA PARA CADASTRO ---
     {
-      path: '/register',
+      path: '/register', // Rota para a página de registro
       name: 'register',
       component: RegisterView
-      // Não precisa de meta: { requiresAuth: true }
     },
-    // --- NOVA ROTA PARA OS DETALHES DA TAREFA ---
+    // Rota para detalhes do chamado
     {
       path: '/task/:id', // O ':id' captura o número da URL
       name: 'task-detail',
@@ -34,12 +32,14 @@ const router = createRouter({
       component: () => import('../views/tasks/TaskDetailView.vue'), 
       meta: { requiresAuth: true } // Também protegida por login
     },
+    // Rota para criar um novo chamado
     {
       path: '/task/new',
       name: 'task-create',
       component: CreateTaskView,
       meta: { requiresAuth: true } // Protegida também
     },
+    // Rota para editar o chamado
     {
       path: '/task/edit/:id',
       name: 'task-edit',
@@ -49,12 +49,12 @@ const router = createRouter({
   ]
 });
 
-// --- NOVO: GUARDA DE NAVEGAÇÃO GLOBAL ---
+// --- GUARDA DE NAVEGAÇÃO GLOBAL ---
 // Este código roda ANTES de cada mudança de rota
 router.beforeEach((to, from, next) => {
   const { isAuthenticated } = useAuth();
 
-  // Se a rota requer autenticação E o usuário não está logado
+  // Se a rota requer autenticação, e o usuário não está logado
   if (to.meta.requiresAuth && !isAuthenticated.value) {
     // Redireciona para a página de login
     next({ name: 'login' });

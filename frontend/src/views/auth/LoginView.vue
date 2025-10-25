@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../../services/api';
 // Importe setUser do seu store de autenticação
-import { clearToken, useAuth } from '../../store/auth';
+import { clearToken, useAuth } from '../../stores/auth';
 import axios from 'axios'; // Mantenha a importação do axios para error handling
 
 const router = useRouter();
