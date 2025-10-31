@@ -198,8 +198,8 @@ function cancelStatusUpdate() {
       <nav class="header-nav">
         <a href="#">Dashboard</a>
         <a href="#">Chamados</a>
-        <a href="#">Ativos</a>
-        <a href="#">Relatórios</a>
+        <router-link to="/equipments" class="nav-link">Ativos</router-link>
+        <!-- <a href="#">Relatórios</a> -->
       </nav>
       <div class="header-icons">
         <span v-if="user" class="user-name">{{ user.name }}</span>

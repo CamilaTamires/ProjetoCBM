@@ -46,6 +46,14 @@ const router = createRouter({
       component: () => import('../views/tasks/EditTaskView.vue'),
       meta: { requiresAuth: true } // Protegida também
     },
+    
+    // Rota para equipamentos
+    {
+      path: '/equipments',
+      name: 'equipments',
+      component: () => import('../views/EquipmentsView.vue'),
+      meta: { requiresAuth: true }
+    }
   ]
 });
 
