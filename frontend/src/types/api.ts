@@ -24,7 +24,7 @@ export interface Equipment {
   qr_code_image: string | null;
 }
 
-// Este é o tipo para os *valores* de status
+// Tipo para os *valores* de status
 export type TaskStatusValue = 'OPEN' | 'WAITING_RESPONSIBLE' | 'ONGOING' | 'DONE' | 'FINISHED' | 'CANCELLED';
 
 export interface Task {

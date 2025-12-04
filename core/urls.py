@@ -10,6 +10,6 @@ router.register(r'equipment',EquipmentView)
 router.register(r'notification',NotificationView)
 router.register(r'task-status', TaskStatusView, basename='taskstatus')
 router.register(r'task-status-image', TaskStatusImageView, basename='taskstatusimage')
-router.register(r'task',TaskView)
+router.register(r'task',TaskView, basename='task')
 
 urlpatterns = router.urls

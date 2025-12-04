@@ -4,6 +4,7 @@ import DashboardView from '../views/DashboardView.vue';
 import CreateTaskView from '../views/tasks/CreateTaskView.vue';
 import LoginView from '../views/auth/LoginView.vue'; // Importe a nova view de login
 import RegisterView from '../views/auth/RegisterView.vue';
+import ReportsView from '../views/test/ReportsView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,14 +38,14 @@ const router = createRouter({
       path: '/task/new',
       name: 'task-create',
       component: CreateTaskView,
-      meta: { requiresAuth: true } // Protegida também
+      meta: { requiresAuth: true } // Protegida por autenticação
     },
     // Rota para editar o chamado
     {
       path: '/task/edit/:id',
       name: 'task-edit',
       component: () => import('../views/tasks/EditTaskView.vue'),
-      meta: { requiresAuth: true } // Protegida também
+      meta: { requiresAuth: true } // Protegida por autenticação
     },
     
     // Rota para equipamentos
@@ -52,7 +53,14 @@ const router = createRouter({
       path: '/equipments',
       name: 'equipments',
       component: () => import('../views/EquipmentsView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true } // Protegida por autenticação
+    },
+    // Rota para página de relatórios
+    {
+      path: '/reports',
+      name: 'reports',
+      component: ReportsView,
+      meta: { requiresAuth: true } // Protegida por autenticação
     }
   ]
 });

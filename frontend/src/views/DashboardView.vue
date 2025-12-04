@@ -2,43 +2,66 @@
 import { ref, onMounted, computed } from 'vue'
 import type { Ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuth } from '../stores/auth' // Presumo que este caminho esteja correto
-import api from '../services/api' // Presumo que este caminho esteja correto
-// Importamos TaskStatus (o objeto que vem no histórico) e TaskStatusValue (o tipo 'OPEN' | 'ONGOING'...)
-import type { Task, TaskStatus, TaskStatusValue } from '../types/api' // Presumo que este caminho esteja correto
+import { useAuth } from '../stores/auth'
+import api from '../services/api'
+import type { Task, TaskStatus, TaskStatusValue } from '../types/api'
 
 // --- Estado do Componente ---
 const tasks: Ref<Task[]> = ref([])
 const loading: Ref<boolean> = ref(true)
 const error: Ref<string | null> = ref(null)
 const searchQuery: Ref<string> = ref('')
+
+// --- Estado de Ordenação / Filtro por coluna ---
+const sortColumn = ref<string>('')
+const sortDirection = ref<number>(1) // 1 = asc, -1 = desc
+
+// Função para ordenar quando clicar nos botões
+function handleSort(column: string) {
+  if (sortColumn.value === column) {
+    sortDirection.value = -sortDirection.value
+  } else {
+    sortColumn.value = column
+    sortDirection.value = 1
+  }
+}
+
 const router = useRouter()
 const { user, clearToken } = useAuth()
 
-// --- NOVO: Estado para o Modal de Atualização de Status ---
+// --- Estado para o Modal de Atualização de Status ---
 const showStatusModal = ref(false)
 const statusUpdateComment = ref('')
 const statusUpdateImage = ref<File | null>(null)
-const statusUpdateImageName = ref<string>('') // Para mostrar o nome do arquivo selecionado
+const statusUpdateImageName = ref<string>('')
 const taskToUpdate = ref<Task | null>(null)
 const newStatusToSet = ref<TaskStatusValue | null>(null)
 
 // --- Funções ---
 async function fetchTasks() {
   try {
+    // O Backend retorna APENAS o que o usuário pode ver.
+    // Se for Técnico -> Retorna tudo.
+    // Se for Colaborador -> Retorna só os dele.
     const response = await api.getTasks()
     const fetchedTasks = response.data
-    // --- CORREÇÃO AQUI: Ordena o histórico de cada tarefa ---
+
+    // Organização do Histórico de Status (para pegar o status atual corretamente)
     fetchedTasks.forEach((task) => {
       if (task.status_history && Array.isArray(task.status_history)) {
-        // Ordena do mais recente para o mais antigo
         task.status_history.sort(
           (a, b) => new Date(b.status_date).getTime() - new Date(a.status_date).getTime()
         )
       } else {
-        task.status_history = [] // Garante array vazio se não vier
+        task.status_history = []
       }
     })
+
+    // Ordenação Visual: Mais recentes no topo (Redundância visual caso backend não ordene)
+    fetchedTasks.sort(
+      (a, b) => new Date(b.creation_date).getTime() - new Date(a.creation_date).getTime()
+    )
+
     tasks.value = fetchedTasks
   } catch (err) {
     console.error('Erro ao buscar as tarefas:', err)
@@ -50,29 +73,74 @@ async function fetchTasks() {
 
 onMounted(fetchTasks)
 
-// --- NOVA FUNÇÃO HELPER ---
-// Computed property para pegar o status mais recente do histórico
+// --- Helpers ---
 const getLatestStatus = (task: Task): TaskStatusValue | null => {
   return task.status_history && task.status_history.length > 0
-    ? task.status_history[0].status // Pega o status do primeiro item (mais recente)
+    ? task.status_history[0].status
     : null
 }
 
+const getLatestStatusDate = (task: Task): string | null => {
+  return task.last_status_date || task.creation_date || null
+}
+
 const filteredTasks = computed<Task[]>(() => {
-  if (!searchQuery.value) {
-    return tasks.value
+  let result = [...tasks.value]
+
+  // Primeiro: filtro de busca
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(
+      (task) =>
+        task.name.toLowerCase().includes(q) ||
+        task.id.toString().includes(q) ||
+        task.creator_FK?.name.toLowerCase().includes(q)
+    )
   }
-  const lowerCaseQuery = searchQuery.value.toLowerCase()
-  return tasks.value.filter(
-    (task) =>
-      task.name.toLowerCase().includes(lowerCaseQuery) ||
-      task.id.toString().includes(lowerCaseQuery) ||
-      task.creator_FK?.name.toLowerCase().includes(lowerCaseQuery)
-  )
+
+  // Depois: ordenação conforme sortColumn
+  if (sortColumn.value) {
+    result.sort((a, b) => {
+      let vA: any = ''
+      let vB: any = ''
+
+      switch (sortColumn.value) {
+        case 'date':
+          // considera a data mais recente / data de status
+          vA = getLatestStatusDate(a) ?? ''
+          vB = getLatestStatusDate(b) ?? ''
+          break
+        case 'environment':
+          vA = a.equipments_FK[0]?.environment_FK?.name ?? ''
+          vB = b.equipments_FK[0]?.environment_FK?.name ?? ''
+          break
+        case 'status':
+          vA = getLatestStatus(a) ?? ''
+          vB = getLatestStatus(b) ?? ''
+          break
+        case 'asset':
+          vA = a.equipments_FK[0]?.name ?? ''
+          vB = b.equipments_FK[0]?.name ?? ''
+          break
+      }
+
+      // se for data, converter para timestamp, senão usar localeCompare
+      if (sortColumn.value === 'date') {
+        const dA = new Date(vA).getTime()
+        const dB = new Date(vB).getTime()
+        return (dA - dB) * sortDirection.value
+      } else {
+        return String(vA).localeCompare(String(vB)) * sortDirection.value
+      }
+    })
+  }
+
+  return result
 })
 
+// --- Formatação Visual ---
 const getStatusClass = (status: TaskStatusValue | null | undefined): string => {
-  if (!status) return ''
+  if (!status) return 'status-none'
   const statusMap: Record<TaskStatusValue, string> = {
     OPEN: 'status-aberto',
     WAITING_RESPONSIBLE: 'status-andamento',
@@ -81,13 +149,11 @@ const getStatusClass = (status: TaskStatusValue | null | undefined): string => {
     FINISHED: 'status-concluido',
     CANCELLED: 'status-cancelado',
   }
-  return statusMap[status] || ''
+  return statusMap[status] || 'status-none'
 }
 
 const formatStatus = (status: TaskStatusValue | null | undefined): string => {
-  if (!status) {
-    return 'Status não informado'
-  }
+  if (!status) return 'Status não informado'
   const statusMap: Record<TaskStatusValue, string> = {
     OPEN: 'Aberto',
     WAITING_RESPONSIBLE: 'Aguardando Responsável',
@@ -99,6 +165,7 @@ const formatStatus = (status: TaskStatusValue | null | undefined): string => {
   return statusMap[status] || status.replace(/_/g, ' ')
 }
 
+// Função de Logout
 async function handleLogout() {
   if (window.confirm('Tem certeza que deseja sair?')) {
     try {
@@ -113,21 +180,21 @@ async function handleLogout() {
 }
 
 // --- LÓGICA DO MODAL ---
-
-// 1. Esta função agora apenas ABRE o modal
 function openStatusUpdateModal(task: Task, event: Event) {
   const target = event.target as HTMLSelectElement
-  const newStatus = target.value as TaskStatusValue
+  const newStatus = target.value as TaskStatusValue // --- CORREÇÃO DE TIPO ---
+
+  // Reseta visualmente para o valor antigo (o modal confirmará a troca)
+  target.value = getLatestStatus(task) || ''
 
   taskToUpdate.value = task
   newStatusToSet.value = newStatus
-  statusUpdateComment.value = '' // Limpa campos de um uso anterior
+  statusUpdateComment.value = ''
   statusUpdateImage.value = null
   statusUpdateImageName.value = ''
-  showStatusModal.value = true // Abre o modal
+  showStatusModal.value = true
 }
 
-// 2. Esta função captura o arquivo selecionado pelo usuário
 function onFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
@@ -139,502 +206,920 @@ function onFileSelected(event: Event) {
   }
 }
 
-// 3. Esta função é chamada ao ENVIAR o formulário do modal
 async function handleSubmitStatusUpdate() {
   if (!taskToUpdate.value || !newStatusToSet.value) return
 
-  const { user } = useAuth();
-  const loggedInUserId = user.value?.id // Pega o ID 
-
-  // Adicione uma verificação para garantir que temos um ID
+  const loggedInUserId = user.value?.id
   if (!loggedInUserId) {
     alert('Erro: Usuário não identificado. Faça login novamente.')
-    return // Interrompe a função se não encontrar o ID
+    return
   }
 
   try {
-    // ETAPA 1: Envia os dados de texto (JSON) para criar o TaskStatus
     const statusPayload = {
       task_FK: taskToUpdate.value.id,
       status: newStatusToSet.value,
       comment: statusUpdateComment.value,
       user_FK: loggedInUserId,
     }
-
     const newStatusResponse = await api.createTaskStatus(statusPayload)
     const newStatusId = newStatusResponse.data.id
-
-    // ETAPA 2: Se uma imagem foi selecionada, envia os dados do arquivo (FormData)
     if (statusUpdateImage.value) {
       const imagePayload = new FormData()
       imagePayload.append('image', statusUpdateImage.value)
       imagePayload.append('task_status_FK', newStatusId.toString())
-
       await api.uploadTaskStatusImage(imagePayload)
     }
-
     alert(`Status do chamado #${taskToUpdate.value.id} alterado com sucesso!`)
-
-    showStatusModal.value = false // Fecha o modal
-    fetchTasks() // Recarrega a lista para mostrar os dados atualizados
+    showStatusModal.value = false
+    fetchTasks()
   } catch (error) {
     console.error('Falha ao atualizar o status:', error)
     alert('Não foi possível atualizar o status.')
   }
 }
 
-// Esta função CANCELA a operação
 function cancelStatusUpdate() {
   showStatusModal.value = false
-  // Recarrega os dados para que o <select> na tabela volte ao seu valor original
   fetchTasks()
 }
 </script>
 
 <template>
-  <div>
+  <div class="app-layout">
     <header class="header">
-      <div class="header-logo">MANGE-TECH</div>
-      <nav class="header-nav">
-        <a href="#">Dashboard</a>
-        <a href="#">Chamados</a>
-        <router-link to="/equipments" class="nav-link">Ativos</router-link>
-        <!-- <a href="#">Relatórios</a> -->
-      </nav>
-      <div class="header-icons">
-        <span v-if="user" class="user-name">{{ user.name }}</span>
-        <img src="../assets/user.jpg" alt="User" class="user-profile" />
-        <button @click="handleLogout" class="logout-button">Sair</button>
+      <div class="header-left">
+        <div class="brand-logo">MANGE_TECH</div>
+        <nav class="nav-links">
+          <router-link to="/" class="nav-item active">Dashboard</router-link>
+          <router-link to="/equipments" class="nav-item">Ativos</router-link>
+          <router-link to="/reports" class="nav-item">Relatórios</router-link>
+        </nav>
+      </div>
+
+      <div class="header-right">
+        <div class="user-menu">
+          <button class="icon-btn disabled" title="Em breve">
+            <i class="fas fa-bell"></i>
+          </button>
+          <div class="user-info" v-if="user">
+            <span class="user-name">{{ user.name }}</span>
+            <img src="../assets/user.png" alt="Avatar" class="user-avatar" />
+          </div>
+          <button @click="handleLogout" class="logout-btn" title="Sair">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
       </div>
     </header>
 
-    <main class="dashboard-container">
-      <div class="dashboard-content">
-        <div
-          class="dashboard-header"
-          style="display: flex; justify-content: space-between; align-items: center"
-        >
-          <div>
+    <main class="main-container">
+      <div class="content-wrapper">
+        <div class="page-header">
+          <div class="page-title-group">
             <h1>Dashboard</h1>
-            <p>Visão geral dos chamados e ativos</p>
+            <p>Visão geral dos chamados</p>
           </div>
-          <router-link to="/task/new" class="create-button"> Novo Chamado </router-link>
+          <router-link to="/task/new" class="primary-btn">
+            <i class="fas fa-plus"></i> Novo Chamado
+          </router-link>
         </div>
 
-        <div class="table-container">
-          <table v-if="!loading && !error">
-            <thead>
-              <tr>
-                <th>Chamado</th>
-                <th>Nome</th>
-                <th>Ativo Principal</th>
-                <th>Status</th>
-                <th>Ambiente Principal</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="task in filteredTasks" :key="task.id">
-                <td>
-                  <router-link :to="`/task/${task.id}`" class="task-id-link">
-                    #{{ task.id }}
-                  </router-link>
-                </td>
-                <td>{{ task.name }}</td>
-                <td>{{ task.equipments_FK[0]?.name || 'N/A' }}</td>
-                <td>
-                  <select
-                    :value="getLatestStatus(task)"
-                    @change="openStatusUpdateModal(task, $event)"
-                    class="status-select"
-                    :class="getStatusClass(getLatestStatus(task))"
-                  >
-                    <option :value="null" disabled>Selecione</option>
-                    <option value="OPEN">Aberto</option>
-                    <option value="WAITING_RESPONSIBLE">Aguardando Responsável</option>
-                    <option value="ONGOING">Em Andamento</option>
-                    <option value="DONE">Feito</option>
-                    <option value="FINISHED">Finalizado</option>
-                    <option value="CANCELLED">Cancelado</option>
-                  </select>
-                </td>
-                <td>{{ task.equipments_FK[0]?.environment_FK?.name || 'N/A' }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="toolbar">
+          <div class="filters">
+            <button
+              class="filter-button"
+              :class="{ active: sortColumn === 'date' }"
+              @click="handleSort('date')"
+            >
+              Data
+              <i
+                class="fas"
+                :class="
+                  sortColumn === 'date' && sortDirection === 1 ? 'fa-chevron-up' : 'fa-chevron-down'
+                "
+              ></i>
+            </button>
+
+            <button
+              class="filter-button"
+              :class="{ active: sortColumn === 'environment' }"
+              @click="handleSort('environment')"
+            >
+              Ambiente
+              <i
+                class="fas"
+                :class="
+                  sortColumn === 'environment' && sortDirection === 1
+                    ? 'fa-chevron-up'
+                    : 'fa-chevron-down'
+                "
+              ></i>
+            </button>
+
+            <button
+              class="filter-button"
+              :class="{ active: sortColumn === 'status' }"
+              @click="handleSort('status')"
+            >
+              Status
+              <i
+                class="fas"
+                :class="
+                  sortColumn === 'status' && sortDirection === 1
+                    ? 'fa-chevron-up'
+                    : 'fa-chevron-down'
+                "
+              ></i>
+            </button>
+
+            <button
+              class="filter-button"
+              :class="{ active: sortColumn === 'asset' }"
+              @click="handleSort('asset')"
+            >
+              Ativo
+              <i
+                class="fas"
+                :class="
+                  sortColumn === 'asset' && sortDirection === 1
+                    ? 'fa-chevron-up'
+                    : 'fa-chevron-down'
+                "
+              ></i>
+            </button>
+          </div>
+
+          <div class="search-group">
+            <i class="fas fa-search"></i>
+            <input v-model="searchQuery" type="text" placeholder="Filtrar chamados..." />
+          </div>
+        </div>
+
+        <div class="data-view">
+          <div v-if="loading" class="state-message">
+            <div class="spinner"></div>
+            Carregando chamados...
+          </div>
+          <div v-else-if="error" class="state-message error">{{ error }}</div>
+
+          <div v-else class="table-responsive">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th width="10%">Chamado</th>
+                  <th width="15%">Data</th>
+                  <th width="15%">Status</th>
+                  <th width="15%" class="hide-mobile">Ambiente</th>
+                  <th width="15%" class="hide-mobile">Ativo</th>
+                  <th width="15%" class="hide-mobile">Responsável</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="task in filteredTasks" :key="task.id">
+                  <td data-label="Chamado">
+                    <router-link :to="`/task/${task.id}`" class="id-link">
+                      #{{ task.id }}
+                    </router-link>
+                    <div class="mobile-task-name">{{ task.name }}</div>
+                  </td>
+
+                  <td data-label="Data">
+                    {{ getLatestStatusDate(task) ? new Date(getLatestStatusDate(task)!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '--/--/--' }}
+                  </td>
+
+                  <td data-label="Status">
+                    <div class="select-wrapper">
+                      <select
+                        :value="getLatestStatus(task)"
+                        @change="openStatusUpdateModal(task, $event)"
+                        class="status-badge-select"
+                        :class="getStatusClass(getLatestStatus(task))"
+                      >
+                        <option :value="null" disabled>Selecione</option>
+                        <option value="OPEN">Aberto</option>
+                        <option value="WAITING_RESPONSIBLE">Aguardando</option>
+                        <option value="ONGOING">Em Andamento</option>
+                        <option value="DONE">Feito</option>
+                        <option value="FINISHED">Finalizado</option>
+                        <option value="CANCELLED">Cancelado</option>
+                      </select>
+                    </div>
+                  </td>
+
+                  <td class="hide-mobile">
+                    {{ task.equipments_FK[0]?.environment_FK?.name || '-' }}
+                  </td>
+                  <td class="hide-mobile">{{ task.equipments_FK[0]?.name || '-' }}</td>
+                  <td class="hide-mobile">
+                    <div class="avatar-group">
+                      <div class="avatar-circle">
+                        {{ task.responsibles_FK[0]?.name?.charAt(0) || '?' }}
+                      </div>
+                      <span>{{ task.responsibles_FK[0]?.name || 'Não atribuído' }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </main>
 
-    <!-- Modal para Atualização de Status -->
-    <div v-if="showStatusModal" class="modal-overlay">
-      <div class="modal-content">
-        <h3>Atualizar Status do Chamado #{{ taskToUpdate?.id }}</h3>
-        <p>
-          Novo Status: <strong>{{ formatStatus(newStatusToSet) }}</strong>
-        </p>
-
-        <form @submit.prevent="handleSubmitStatusUpdate">
-          <div class="form-group">
-            <label for="comment">Comentário:</label>
-            <textarea id="comment" v-model="statusUpdateComment" rows="3" required></textarea>
+    <Transition name="fade">
+      <div v-if="showStatusModal" class="modal-backdrop" @click.self="cancelStatusUpdate">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <h3>Atualizar Status #{{ taskToUpdate?.id }}</h3>
+            <button @click="cancelStatusUpdate" class="close-btn">&times;</button>
           </div>
 
-          <div class="form-group">
-            <label for="image">Anexar Imagem (Opcional):</label>
-            <input id="image" type="file" @change="onFileSelected" accept="image/*" />
-            <span v-if="statusUpdateImageName" class="file-name">{{ statusUpdateImageName }}</span>
-          </div>
+          <div class="modal-body">
+            <p class="status-target">
+              Novo Status:
+              <span :class="getStatusClass(newStatusToSet)" class="status-pill">{{
+                formatStatus(newStatusToSet)
+              }}</span>
+            </p>
 
-          <div class="modal-actions">
-            <button type="button" @click="cancelStatusUpdate" class="cancel-button">
-              Cancelar
-            </button>
-            <button type="submit" class="submit-button">Salvar Atualização</button>
+            <form @submit.prevent="handleSubmitStatusUpdate">
+              <div class="input-group">
+                <label>Comentário (Obrigatório)</label>
+                <textarea
+                  v-model="statusUpdateComment"
+                  rows="4"
+                  placeholder="Descreva o motivo da alteração..."
+                  required
+                ></textarea>
+              </div>
+
+              <div class="input-group">
+                <label>Evidência (Opcional)</label>
+                <div class="file-upload">
+                  <input type="file" id="file" @change="onFileSelected" accept="image/*" />
+                  <label for="file" class="file-label">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>{{ statusUpdateImageName || 'Escolher imagem...' }}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button type="button" @click="cancelStatusUpdate" class="btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn-primary">Salvar</button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>
 
 <style scoped>
+/* --- DESIGN SYSTEM & RESET --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --bg-color: #f8f8f8;
+  /* Cores Neutras */
+  --bg-app: #f3f4f6; /* Cinza muito claro para fundo */
+  --bg-panel: #ffffff; /* Branco para cards */
+  --border: #e5e7eb; /* Cinza claro para bordas */
+  --text-main: #111827; /* Quase preto */
+  --text-muted: #6b7280; /* Cinza médio */
 
-  --primary-text-color: #2c3e50;
+  /* Cores de Ação */
+  --primary: #2563eb; /* Azul vibrante */
+  --primary-hover: #1d4ed8;
+  --danger: #ef4444;
 
-  --secondary-text-color: #7f8c8d;
-
-  --card-bg-color: #ffffff;
-
-  --border-color: #e0e0e0;
-
-  --search-bg-color: #f0f2f5;
-
-  --status-aberto: #d4f3e6;
-
-  --status-andamento: #fbf0d8;
-
-  --status-concluido: #d3eafc;
+  /* Cores de Status (Badges) */
+  --st-open-bg: #dbeafe;
+  --st-open-tx: #1e40af;
+  --st-wait-bg: #fef3c7;
+  --st-wait-tx: #92400e;
+  --st-prog-bg: #fef9c3;
+  --st-prog-tx: #854d0e; /* Amarelo mais suave */
+  --st-done-bg: #d1fae5;
+  --st-done-tx: #065f46;
+  --st-canc-bg: #f3f4f6;
+  --st-canc-tx: #4b5563;
 }
 
-body {
-  font-family: 'Poppins', sans-serif;
-  background-color: var(--bg-color);
-  margin: 0;
-  padding: 0;
+* {
+  box-sizing: border-box;
 }
 
-.dashboard-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+.app-layout {
+  background-color: var(--bg-app);
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
 }
 
+/* --- HEADER --- */
 .header {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 64px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 15px 30px;
-  background-color: var(--card-bg-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
-.header-logo {
-  font-weight: 700;
-  font-size: 24px;
-  color: var(--primary-text-color);
-}
-
-.header-nav {
+.header-left {
   display: flex;
-  gap: 20px;
-  font-weight: 500;
-  color: var(--secondary-text-color);
+  align-items: center;
+  gap: 3rem;
 }
 
-.header-nav a {
+.brand-logo {
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.5px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+}
+.nav-item {
   text-decoration: none;
-  color: inherit;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.nav-item:hover,
+.nav-item.router-link-active {
+  color: var(--text-main);
+  border-bottom-color: var(--text-main);
 }
 
-.header-icons {
+.header-right {
   display: flex;
   align-items: center;
-  gap: 15px; 
+  gap: 1.5rem;
 }
 
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-left: 1px solid var(--border);
+  padding-left: 1rem;
+}
+
+.icon-btn {
+  background-color: var(--bg-app);
+  color: var(--text-muted);
+  border: 0.6px solid;
+  text-decoration: none;
+  padding: 0.5rem 1.0rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: 0.2s;
+  cursor: not-allowed;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 .user-name {
-  font-weight: 500;
-  color: var(--primary-text-color);
-  margin-right: 7px; 
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: none;
 }
-
-.user-profile {
-  width: 35px;
-  height: 35px;
+@media (min-width: 768px) {
+  .user-name {
+    display: block;
+  }
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--border);
 }
 
-.dashboard-content {
-  padding: 40px 0;
+.logout-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
 }
 
-.dashboard-header {
-  font-size: 36px;
+.logout-btn:hover {
+  opacity: 1;
+}
+
+/* --- MAIN CONTENT --- */
+.main-container {
+  flex: 1;
+  padding: 2rem;
+}
+.content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Headers & Titles */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+@media (min-width: 640px) {
+  .page-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.page-title-group h1 {
+  font-size: 1.875rem;
   font-weight: 700;
   margin: 0;
-  color: var(--primary-text-color);
+  line-height: 1.2;
+}
+.page-title-group p {
+  color: var(--text-muted);
+  margin: 0.25rem 0 0 0;
+  font-size: 0.95rem;
 }
 
-.dashboard-header p {
-  font-size: 16px;
-  color: var(--secondary-text-color);
-  margin-top: 5px;
+.primary-btn {
+  background-color: #38e07b;
+  color: #0e1a13;
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+.primary-btn:hover {
+  background: var(--primary-hover);
 }
 
+/* TOOLBAR */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
 .filters {
   display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 15px;
-  margin: 30px 0;
+}
+.filter-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-right: 0.5rem;
 }
 
-.filter-item {
-  position: relative;
+@media (min-width: 768px) {
+  .toolbar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.filter-button {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   cursor: pointer;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background-color: var(--card-bg-color);
-  color: var(--primary-text-color);
-  font-weight: 500;
+  transition: 0.2s;
+}
+.filter-button.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: #f0f9ff;
 }
 
-.filter-item i {
-  margin-left: 8px;
-}
-
-.table-container {
-  background-color: var(--card-bg-color);
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  padding: 20px;
-}
-
-.table-search {
+.search-group {
   position: relative;
-  margin-bottom: 20px;
-}
-
-.table-search input {
   width: 100%;
-  padding: 10px 15px 10px 40px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background-color: var(--search-bg-color);
-  color: var(--primary-text-color);
 }
-
-.table-search .fa-search {
+@media (min-width: 768px) {
+  .search-group {
+    width: 300px;
+  }
+}
+.search-group i {
   position: absolute;
-  left: 15px;
+  left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--secondary-text-color);
+  color: var(--text-muted);
+}
+.search-group input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: border 0.2s;
+}
+.search-group input:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
-table {
+/* --- DATA VIEW (Table/Cards) --- */
+.data-view {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden; /* Arredonda cantos da tabela */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.state-message {
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+.spinner {
+  /* Spinner simples CSS */
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-left-color: var(--primary);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  animation: spin 1s linear infinite;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tabela Responsiva */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+.custom-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  white-space: nowrap;
 }
 
-th,
-td {
-  padding: 15px;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--primary-text-color);
-}
-
-th {
+.custom-table th {
+  background: #f9fafb;
+  padding: 1rem 1.5rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--secondary-text-color);
-  font-size: 14px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
 }
 
-td {
-  font-weight: 400;
-  font-size: 15px;
+.custom-table td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+.custom-table tr:last-child td {
+  border-bottom: none;
+}
+.custom-table tr:hover {
+  background: #f9fafb;
 }
 
-tr:hover {
-  background-color: #f5f5f5;
-}
-
-.task-id-link {
-  color: #3b82f6; 
-  font-weight: 500;
+/* Links e Texto */
+.id-link {
+  font-weight: 600;
+  color: var(--text-main);
   text-decoration: none;
 }
-.task-id-link:hover {
+.id-link:hover {
+  color: var(--primary);
   text-decoration: underline;
 }
-
-.status-badge {
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-weight: 500;
-  font-size: 13px;
+.mobile-task-name {
+  display: none;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
-.status-aberto {
-  background-color: var(--status-aberto);
-  color: #1a7e4b;
+/* Avatar Group */
+.avatar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.avatar-circle {
+  width: 28px;
+  height: 28px;
+  background: #e0e7ff;
+  color: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8rem;
 }
 
-.status-andamento {
-  background-color: var(--status-andamento);
-  color: #d88909;
-}
-
-.status-concluido {
-  background-color: var(--status-concluido);
-  color: #3b82f6;
-}
-
-.error-message {
-  color: red;
-  padding: 20px;
-  text-align: center;
-}
-
-.create-button {
-  background-color: #38e07b;
-  color: #0e1a13;
-  padding: 10px 20px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: bold;
-  font-size: 16px;
-}
-
-.action-button {
-  border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-right: 5px;
-  font-size: 14px;
-  text-decoration: none;
-  color: white !important;
+/* Status Select (Styled as Badge) */
+.select-wrapper {
+  position: relative;
   display: inline-block;
 }
-
-.action-button.edit {
-  background-color: #3b82f6;
-}
-
-.action-button.delete {
-  background-color: #ef4444;
-}
-
-.status-select {
-  border: none;
-
-  border-radius: 20px;
-
-  padding: 5px 10px;
-
-  font-weight: 500;
-
-  font-size: 13px;
-
-  -webkit-appearance: none;
-
-  -moz-appearance: none;
-
+.status-badge-select {
   appearance: none;
-
-  background-color: transparent;
-
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 99px;
   cursor: pointer;
+  text-align: center;
+  width: 100%;
+  min-width: 110px;
+  transition: opacity 0.2s;
 }
-
-.status-select:focus {
+.status-badge-select:hover {
+  opacity: 0.9;
+}
+.status-badge-select:focus {
   outline: none;
-
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
 
-.modal-overlay {
+/* Cores dos Status */
+.status-aberto {
+  background: var(--st-open-bg);
+  color: var(--st-open-tx);
+}
+.status-andamento {
+  background: var(--st-prog-bg);
+  color: var(--st-prog-tx);
+}
+.status-concluido {
+  background: var(--st-done-bg);
+  color: var(--st-done-tx);
+}
+.status-cancelado,
+.status-none {
+  background: var(--st-canc-bg);
+  color: var(--st-canc-tx);
+}
+
+/* --- RESPONSIVIDADE AVANÇADA (MOBILE VIEW) --- */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 1rem;
+  }
+  .nav-links {
+    display: none;
+  } /* Menu hamburger seria ideal aqui futuramente */
+
+  .hide-mobile {
+    display: none;
+  }
+
+  /* Ajustes na tabela para mobile */
+  .mobile-task-name {
+    display: block; /* Mostra nome embaixo do ID */
+  }
+  .custom-table th {
+    display: none; /* Esconde cabeçalho em mobile */
+  }
+
+  .custom-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto; /* Duas colunas: ID+Nome | Status */
+    gap: 0.5rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+
+  .custom-table td {
+    border: none;
+    padding: 0;
+    display: block;
+  }
+
+  /* Célula do Status vai para a direita */
+  .custom-table td[data-label='Status'] {
+    grid-column: 2;
+    grid-row: 1 / span 2; /* Ocupa altura */
+    text-align: right;
+  }
+
+  /* Célula da Data */
+  .custom-table td[data-label='Data'] {
+    grid-column: 1;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+}
+
+/* --- MODAL --- */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 100;
+  padding: 1rem;
 }
-.modal-content {
+
+.modal-panel {
   background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 500px;
+  max-width: 480px;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
 }
-.modal-content h3 {
-  margin-top: 0;
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
-.modal-content .form-group {
-  margin-bottom: 1rem;
+
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.modal-content label {
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+.status-target {
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+.status-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.input-group {
+  margin-bottom: 1.25rem;
+}
+.input-group label {
   display: block;
-  margin-bottom: 0.5rem;
   font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
 }
-.modal-content input,
-.modal-content textarea {
+.input-group textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  resize: vertical;
 }
-.file-name {
-  font-size: 0.8rem;
-  color: #666;
-  margin-top: 0.5rem;
-  display: block;
+.input-group textarea:focus {
+  outline: 2px solid var(--primary);
+  border-color: transparent;
 }
-.modal-actions {
+
+.file-upload input {
+  display: none;
+}
+.file-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+.file-label:hover {
+  background: #f0f9ff;
+  border-color: var(--primary);
+}
+
+.modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-top: 2rem;
 }
-.modal-actions .submit-button {
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+.btn-secondary {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: bold;
+  color: var(--text-main);
 }
-.modal-actions .cancel-button {
-  background-color: #ccc;
-  color: #0e1a13;
+.btn-secondary:hover {
+  background: var(--bg-app);
+}
+.btn-primary {
+  background: #38e07b;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
+  color: white;
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
 }
 </style>

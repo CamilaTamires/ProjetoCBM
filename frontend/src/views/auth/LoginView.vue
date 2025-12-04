@@ -2,174 +2,297 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../../services/api';
-// Importe setUser do seu store de autenticação
 import { clearToken, useAuth } from '../../stores/auth';
-import axios from 'axios'; // Mantenha a importação do axios para error handling
+import axios from 'axios';
 
 const router = useRouter();
-// Pegue setToken E setUser
 const { setToken, setUser } = useAuth();
 
 const email = ref('');
 const password = ref('');
 const errorMessage = ref<string | null>(null);
-const isLoading = ref(false); // Opcional: para feedback visual
+const isLoading = ref(false);
 
 async function handleLogin() {
   errorMessage.value = null;
-  isLoading.value = true; // Opcional: Inicia loading
+  isLoading.value = true;
 
   try {
-    // 1. Fazer login para obter o token
     const loginResponse = await api.login({ email: email.value, password: password.value });
     const token = loginResponse.data.auth_token;
-
-    // 2. Salvar o token (isso permite que a próxima chamada funcione)
     setToken(token);
 
-    // 3. Buscar os dados do usuário usando o token recém-salvo
     const userResponse = await api.getMe();
     const userData = userResponse.data;
-
-    // 4. Salvar os dados do usuário no store/localStorage
     setUser(userData);
 
-    // 5. Redirecionar para o dashboard
     router.push('/');
 
   } catch (error: unknown) {
-    console.error('Falha no login ou ao buscar dados do usuário:', error);
-    // Limpa o token se algo deu errado (ex: getMe falhou)
-    clearToken(); // Importe clearToken do useAuth se ainda não o fez
+    console.error('Falha no login:', error);
+    clearToken();
 
     if (axios.isAxiosError(error) && error.response) {
        if (error.response.status === 400 || error.response.status === 401) {
            errorMessage.value = 'Email ou senha inválidos.';
-       } else if (error.request.url?.includes('/me/')) {
-           errorMessage.value = 'Erro ao buscar dados do usuário após login.';
-       }
-        else {
+       } else {
            errorMessage.value = 'Erro de conexão ou no servidor.';
        }
     } else {
       errorMessage.value = 'Ocorreu um erro inesperado.';
     }
   } finally {
-      isLoading.value = false; // Opcional: Termina loading
+      isLoading.value = false;
   }
 }
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="login-box">
-      <h1>MANGE-TECH</h1>
-      <p>Acesse sua conta para continuar</p>
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input
-            id="email"
-            v-model="email"
-            type="email"
-            placeholder="seuemail@exemplo.com"
-            required
-          />
+  <div class="login-page">
+    <div class="login-card">
+      
+      <div class="card-header-image">
+        <div class="banner-placeholder">
+           <svg viewBox="0 0 500 150" preserveAspectRatio="none" style="height: 100%; width: 100%;">
+              <path d="M0,100 C150,200 350,0 500,100 L500,00 L0,0 Z" style="stroke: none; fill: #2C5F58;"></path>
+              <circle cx="400" cy="30" r="10" fill="#2C5F58" />
+              <circle cx="350" cy="50" r="7" fill="#2C5F58" />
+           </svg>
+           <div class="beige-shape"></div>
         </div>
-        <div class="form-group">
-          <label for="password">Senha</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            placeholder="Sua senha"
-            required
-          />
-        </div>
+      </div>
 
-        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      <div class="card-body">
+        <h1 class="title">Bem-vindo de volta</h1>
+        
+        <form @submit.prevent="handleLogin" class="login-form">
+          <div class="form-group">
+            <label for="email" class="sr-only">Email</label>
+            <input 
+              id="email"
+              v-model="email"
+              type="email"
+              placeholder="Nome de usuário ou email"
+              class="input-field"
+              required 
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="password" class="sr-only">Senha</label>
+            <input 
+              id="password"
+              v-model="password"
+              type="password"
+              placeholder="Senha"
+              class="input-field"
+              required 
+            />
+          </div>
 
-        <button type="submit" class="login-button">Entrar</button>
+          <div class="form-footer">
+            <a href="#" class="forgot-password">Esqueceu a senha?</a>
+          </div>
 
-        <p class="register-link">
-          Não tem uma conta? <router-link to="/register">Cadastre-se</router-link>
-        </p>
-      </form>
+          <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+          <button type="submit" class="submit-btn" :disabled="isLoading">
+            {{ isLoading ? 'Entrando...' : 'Entrar' }}
+          </button>
+
+          <p class="register-text">
+            Não tem uma conta? <router-link to="/register" class="register-link">Cadastre-se</router-link>
+          </p>
+        </form>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.login-container {
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Variáveis baseadas no protótipo */
+:root {
+  --primary-green: #34D399; /* Verde vibrante do botão */
+  --primary-green-hover: #10B981;
+  --bg-input: #EAF4F0; /* Fundo esverdeado claro dos inputs */
+  --text-main: #111827;
+  --text-muted: #6B7280;
+  --link-color: #10B981; /* Verde para links */
+}
+
+* { box-sizing: border-box; }
+
+.login-page {
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  background-color: #f8fbfa;
+  background-color: #FAFAFA; /* Fundo muito claro */
+  font-family: 'Inter', sans-serif;
+  padding: 2rem;
 }
-.login-box {
+
+.login-card {
   background: white;
-  padding: 3rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 400px;
+  max-width: 480px; /* Largura similar ao protótipo */
+  border-radius: 16px; /* Bordas bem arredondadas */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); /* Sombra suave */
+  overflow: hidden; /* Para cortar a imagem no topo */
+}
+
+/* --- HEADER / IMAGEM --- */
+.card-header-image {
+  height: 160px; /* Altura do banner */
+  background-color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.banner-placeholder {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-color: #fff;
+}
+
+/* Simulação das formas da imagem (Você substituirá por <img>) */
+.beige-shape {
+  position: absolute;
+  bottom: -40px;
+  right: -20px;
+  width: 150px;
+  height: 150px;
+  background-color: #EADBC8; /* Cor bege */
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* Se for usar imagem real: */
+.card-header-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Garante que preencha sem distorcer */
+}
+
+/* --- CORPO DO CARD --- */
+.card-body {
+  padding: 2rem 3rem 3rem 3rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
   text-align: center;
+  margin-bottom: 2.5rem;
 }
-h1 {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #0e1a13;
-  margin-bottom: 0.5rem;
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
-p {
-  color: #7f8c8d;
-  margin-bottom: 2rem;
+
+/* Esconde labels visualmente mas mantém para leitores de tela */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
-.form-group {
-  text-align: left;
-  margin-bottom: 1.5rem;
-}
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-input {
+
+.input-field {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-.error-message {
-  color: #ef4444;
-  margin-top: -1rem;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-.login-button {
-  width: 100%;
-  background: #38e07b;
-  color: #0e1a13;
-  border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 1rem 1.25rem;
+  border: none; /* Sem borda, apenas fundo */
   border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
+  background-color: #E8F3EE; /* Cor de fundo esverdeada clara do protótipo */
   font-size: 1rem;
+  color: #374151;
+  transition: outline 0.2s;
 }
-.register-link {
-  margin-top: 1.5rem;
+
+.input-field::placeholder {
+  color: #6B7280;
+}
+
+.input-field:focus {
+  outline: 2px solid #34D399; /* Foco verde */
+  background-color: #fff;
+}
+
+.form-footer {
+  display: flex;
+  justify-content: flex-start; /* Alinha à esquerda como no protótipo? Ou direita? */
+  margin-top: -0.5rem;
+}
+
+.forgot-password {
   font-size: 0.9rem;
-  color: #7f8c8d;
-}
-.register-link a {
-  color: #3b82f6;
+  color: #10B981; /* Verde */
   text-decoration: none;
   font-weight: 500;
 }
-.register-link a:hover {
-  text-decoration: underline;
+.forgot-password:hover { text-decoration: underline; }
+
+.submit-btn {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #34D399; /* Verde do botão */
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 1rem;
+}
+
+.submit-btn:hover {
+  background-color: #10B981;
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.register-text {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #6B7280;
+  margin-top: 1.5rem;
+}
+
+.register-link {
+  color: #10B981;
+  text-decoration: none;
+  font-weight: 600;
+}
+.register-link:hover { text-decoration: underline; }
+
+.error-message {
+  color: #EF4444;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Responsividade para telas muito pequenas */
+@media (max-width: 480px) {
+  .card-body {
+    padding: 1.5rem 1.5rem 2rem 1.5rem;
+  }
+  .title {
+    font-size: 1.5rem;
+  }
 }
 </style>

@@ -1,4 +1,3 @@
-# DENTRO DE core/serializers/task_status.py
 from rest_framework import serializers
 from ..models import TaskStatus, TaskStatusImage, CustomUser # Make sure CustomUser is imported
 from .custom_user import CustomUserSerializer

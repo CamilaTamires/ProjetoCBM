@@ -5,7 +5,8 @@ from django.dispatch import receiver
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.urls import reverse
-from .models import Equipment
+from django.contrib.auth.models import Group   
+from .models import Equipment, CustomUser
 
 @receiver(post_save, sender=Equipment)
 def generate_equipment_qr(sender, instance, created, **kwargs):
@@ -31,3 +32,16 @@ def generate_equipment_qr(sender, instance, created, **kwargs):
         save=False
     )
     instance.save(update_fields=['qr_code_image'])
+
+@receiver(post_save, sender=CustomUser)
+def add_user_to_default_group(sender, instance, created, **kwargs):
+    """
+    Adiciona automaticamente o usuário recém-criado ao grupo 'Colaborador(a)'.
+    """
+    if created:
+        try:
+            # O nome aqui deve ser IDÊNTICO ao que está no seu Django Admin
+            group = Group.objects.get(name='Colaborador(a)')
+            instance.groups.add(group)
+        except Group.DoesNotExist:
+            print("AVISO: O grupo 'Colaborador(a)' não existe no banco de dados.")

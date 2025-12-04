@@ -1,21 +1,30 @@
 from rest_framework import serializers
 from ..models import Task
 
-# Importamos os serializers que a versão de LEITURA irá usar
+# Importação dos serializers que a versão de LEITURA irá usar
 from .custom_user import CustomUserSerializer
 from .equipment import EquipmentSerializer
 from .task_status import TaskStatusSerializer
+from ..models.custom_user import CustomUser
 
 # Serializer de Escrita 
 class TaskWriteSerializer(serializers.ModelSerializer):
+
+   # Define que responsáveis são uma lista de IDs
+    responsibles_FK = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=CustomUser.objects.all(),
+        required=False
+    )
+
     class Meta:
         model = Task
         fields = [
+            'id',
             'name', 
             'description', 
             'suggested_date', 
             'urgency_level', 
-            'creator_FK', 
             'equipments_FK', 
             'responsibles_FK'
         ]

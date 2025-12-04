@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type AxiosRequestConfig } from 'axios'
 import type {
   Task,
   CustomUser,
@@ -54,7 +54,7 @@ export default {
   },
 
   // Funções de Task (CRUD)
-  getTasks: () => apiClient.get<Task[]>('/task/'),
+  getTasks: (config?: AxiosRequestConfig) => apiClient.get('/task/', config),
   getTask: (id: number) => apiClient.get<Task>(`/task/${id}/`),
   createTask: (taskData: TaskPayload) => apiClient.post<Task>('/task/', taskData),
   updateTask: (id: number, taskData: TaskPayload) => apiClient.put<Task>(`/task/${id}/`, taskData),
