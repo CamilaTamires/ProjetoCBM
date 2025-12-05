@@ -139,3 +139,12 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],   
 }
+
+DJOSER = {
+    # ... suas outras configs do Djoser ...
+    
+    'SERIALIZERS': {
+        'user': 'core.serializers.custom_user.CustomUserSerializer',
+        'current_user': 'core.serializers.custom_user.CustomUserSerializer',
+    },
+}
