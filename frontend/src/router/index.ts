@@ -4,7 +4,7 @@ import DashboardView from '../views/DashboardView.vue';
 import CreateTaskView from '../views/tasks/CreateTaskView.vue';
 import LoginView from '../views/auth/LoginView.vue';
 import RegisterView from '../views/auth/RegisterView.vue';
-import ReportsView from '../views/test/ReportsView.vue';
+import ReportsView from '../views/reports/ReportsView.vue';
 import UnauthorizedView from '.././views/auth/UnauthorizedView.vue';
 
 const router = createRouter({

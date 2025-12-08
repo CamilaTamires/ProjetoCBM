@@ -154,13 +154,12 @@ async function handleSubmit() {
           <div class="form-section">
             <div class="form-row two-cols">
               <div class="form-group">
-                <label for="equipments_FK">Equipamentos Envolvidos</label>
+                <label for="equipments_FK">Equipamento Envolvido</label>
                 <select id="equipments_FK" v-model="taskData.equipments_FK" multiple class="multi-select">
                   <option v-for="equipment in equipments" :key="equipment.id" :value="equipment.id">
                     {{ equipment.name }} ({{ equipment.code }})
                   </option>
                 </select>
-                <small class="hint">Segure Ctrl (ou Cmd) para selecionar múltiplos.</small>
               </div>
 
               <div class="form-group">
@@ -175,15 +174,6 @@ async function handleSubmit() {
                 </small>
               </div>
             </div>
-          </div>
-
-          <hr class="divider" />
-
-          <div class="form-section">
-             <div class="form-group">
-                <label for="status_comment">Comentário Inicial (Opcional)</label>
-                <textarea id="status_comment" v-model="taskData.status_comment" rows="2" placeholder="Adicione uma observação inicial se desejar..."></textarea>
-             </div>
           </div>
 
           <div class="form-actions">

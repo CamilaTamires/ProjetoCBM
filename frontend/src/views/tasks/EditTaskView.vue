@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import api from '../../services/api';
-import type { CustomUser, Equipment } from '../../types/api';
+import { ref, onMounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import api from '../../services/api'
+import type { CustomUser, Equipment } from '../../types/api'
 
-const router = useRouter();
-const route = useRoute();
-const taskId = Number(route.params.id);
+const router = useRouter()
+const route = useRoute()
+const taskId = Number(route.params.id)
 
 // --- INTERFACE PARA OS DADOS DO FORMULÁRIO ---
 interface TaskFormData {
-  name: string;
-  description: string;
-  suggested_date: string;
-  suggested_time: string;
-  urgency_level: string;
-  creator_FK: number | null; 
-  equipments_FK: number[];     
-  responsibles_FK: number[];  
+  name: string
+  description: string
+  suggested_date: string
+  suggested_time: string
+  urgency_level: string
+  creator_FK: number | null
+  equipments_FK: number[]
+  responsibles_FK: number[]
 }
 
 const taskData = ref<TaskFormData>({
@@ -29,80 +29,85 @@ const taskData = ref<TaskFormData>({
   creator_FK: null,
   equipments_FK: [],
   responsibles_FK: [],
-});
+})
 
-const users = ref<CustomUser[]>([]);
-const equipments = ref<Equipment[]>([]);
+const users = ref<CustomUser[]>([])
+const equipments = ref<Equipment[]>([])
 const urgencyLevels = [
   { value: 'LOW', text: 'Baixo' },
   { value: 'MEDIUM', text: 'Médio' },
   { value: 'HIGH', text: 'Alto' },
-];
+]
 
 onMounted(async () => {
   if (!taskId) {
-    alert('ID da tarefa não encontrado.');
-    router.push('/');
-    return;
+    alert('ID da tarefa não encontrado.')
+    router.push('/')
+    return
   }
-  
+
   try {
     const [taskResponse, usersResponse, equipmentsResponse] = await Promise.all([
       api.getTask(taskId),
       api.getUsers(),
-      api.getEquipments()
-    ]);
+      api.getEquipments(),
+    ])
 
-    users.value = usersResponse.data;
-    equipments.value = equipmentsResponse.data;
+    users.value = usersResponse.data
+    equipments.value = equipmentsResponse.data
 
-    const fetchedTask = taskResponse.data;
-    const suggestedDateTime = fetchedTask.suggested_date ? new Date(fetchedTask.suggested_date) : null;
+    const fetchedTask = taskResponse.data
+    const suggestedDateTime = fetchedTask.suggested_date
+      ? new Date(fetchedTask.suggested_date)
+      : null
 
     taskData.value = {
       name: fetchedTask.name,
       description: fetchedTask.description,
       suggested_date: suggestedDateTime ? suggestedDateTime.toISOString().split('T')[0] : '',
-      suggested_time: suggestedDateTime ? suggestedDateTime.toTimeString().split(' ')[0].substring(0, 5) : '',
+      suggested_time: suggestedDateTime
+        ? suggestedDateTime.toTimeString().split(' ')[0].substring(0, 5)
+        : '',
       urgency_level: fetchedTask.urgency_level,
       creator_FK: fetchedTask.creator_FK?.id || null,
-      equipments_FK: fetchedTask.equipments_FK.map(e => e.id),
-      responsibles_FK: fetchedTask.responsibles_FK.map(r => r.id),
-    };
-
+      equipments_FK: fetchedTask.equipments_FK.map((e) => e.id),
+      responsibles_FK: fetchedTask.responsibles_FK.map((r) => r.id),
+    }
   } catch (error) {
-    console.error('Falha ao carregar dados para edição:', error);
-    alert('Não foi possível carregar os dados da tarefa.');
+    console.error('Falha ao carregar dados para edição:', error)
+    alert('Não foi possível carregar os dados da tarefa.')
   }
-});
+})
 
 // --- Lógica para filtrar apenas Técnicos e Admins ---
 const technicians = computed(() => {
-  return users.value.filter(u => 
-    u.groups && u.groups.some(g => ['Técnico', 'Tecnico', 'Técnico(a)', 'Admin'].includes(g))
-  );
-});
+  return users.value.filter(
+    (u) =>
+      u.groups && u.groups.some((g) => ['Técnico', 'Tecnico', 'Técnico(a)', 'Admin'].includes(g))
+  )
+})
 
 async function handleSubmit() {
-  const suggestedDateTime = taskData.value.suggested_date && taskData.value.suggested_time
-    ? `${taskData.value.suggested_date}T${taskData.value.suggested_time}`
-    : null;
+  const suggestedDateTime =
+    taskData.value.suggested_date && taskData.value.suggested_time
+      ? `${taskData.value.suggested_date}T${taskData.value.suggested_time}`
+      : null
 
   const payload = {
     ...taskData.value,
     suggested_date: suggestedDateTime,
-  };
-  
+  }
+
   try {
-    await api.updateTask(taskId, payload);
-    alert('Chamado atualizado com sucesso!');
-    router.push(`/task/${taskId}`); // Redireciona para os detalhes
+    await api.updateTask(taskId, payload)
+    alert('Chamado atualizado com sucesso!')
+    router.push(`/task/${taskId}`) // Redireciona para os detalhes
   } catch (error: any) {
     if (error.response && error.response.status === 403) {
-      alert('Você não tem permissão para editar este chamado. Contate um técnico.');
+      alert('Você não tem permissão para editar este chamado. Contate um técnico.')
     } else {
-      console.error('Erro ao atualizar o chamado:', error);
-      alert('Erro ao atualizar o chamado. Tente novamente mais tarde.');
+      console.error('Erro ao atualizar o chamado:', error)
+      alert('Erro ao atualizar o chamado. Tente novamente mais tarde.')
     }
   }
 }
@@ -120,16 +125,26 @@ async function handleSubmit() {
     <main class="main-content">
       <div class="form-card">
         <form @submit.prevent="handleSubmit">
-          
           <div class="form-section">
             <div class="form-group">
               <label for="name">Título do Chamado</label>
-              <input id="name" v-model="taskData.name" type="text" placeholder="Ex: Manutenção de Impressora" required />
+              <input
+                id="name"
+                v-model="taskData.name"
+                type="text"
+                placeholder="Ex: Manutenção de Impressora"
+                required
+              />
             </div>
-            
+
             <div class="form-group">
               <label for="description">Descrição</label>
-              <textarea id="description" v-model="taskData.description" rows="4" placeholder="Descreva o problema detalhadamente..."></textarea>
+              <textarea
+                id="description"
+                v-model="taskData.description"
+                rows="4"
+                placeholder="Descreva o problema detalhadamente..."
+              ></textarea>
             </div>
           </div>
 
@@ -168,19 +183,28 @@ async function handleSubmit() {
 
             <div class="form-row two-cols">
               <div class="form-group">
-                <label for="equipments_FK">Equipamentos Envolvidos</label>
-                <select id="equipments_FK" v-model="taskData.equipments_FK" multiple class="multi-select">
+                <label for="equipments_FK">Equipamento Envolvido</label>
+                <select
+                  id="equipments_FK"
+                  v-model="taskData.equipments_FK"
+                  multiple
+                  class="multi-select"
+                >
                   <option v-for="equipment in equipments" :key="equipment.id" :value="equipment.id">
                     {{ equipment.name }}
                   </option>
                 </select>
-                <small class="hint">Segure Ctrl (ou Cmd) para selecionar múltiplos.</small>
               </div>
 
               <div class="form-group">
                 <label for="responsibles_FK">Responsáveis Técnicos</label>
                 <!-- Aqui alteramos para usar a computed property 'technicians' -->
-                <select id="responsibles_FK" v-model="taskData.responsibles_FK" multiple class="multi-select">
+                <select
+                  id="responsibles_FK"
+                  v-model="taskData.responsibles_FK"
+                  multiple
+                  class="multi-select"
+                >
                   <option v-for="user in technicians" :key="user.id" :value="user.id">
                     {{ user.name }}
                   </option>
@@ -194,7 +218,6 @@ async function handleSubmit() {
             <router-link :to="`/task/${taskId}`" class="btn btn-cancel">Cancelar</router-link>
             <button type="submit" class="btn btn-save">Salvar Alterações</button>
           </div>
-
         </form>
       </div>
     </main>
@@ -205,18 +228,20 @@ async function handleSubmit() {
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-page: #F9FAFB;
-  --bg-card: #FFFFFF;
+  --bg-page: #f9fafb;
+  --bg-card: #ffffff;
   --text-main: #111827;
-  --text-muted: #6B7280;
-  --border: #E5E7EB;
-  --primary: #2563EB;
-  --primary-hover: #1D4ED8;
-  --success: #10B981;
-  --bg-input: #F3F4F6;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #10b981;
+  --bg-input: #f3f4f6;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 .page-container {
   background-color: var(--bg-page);
@@ -277,8 +302,12 @@ async function handleSubmit() {
   margin-top: 1.5rem;
 }
 
-.two-cols { grid-template-columns: 1fr 1fr; }
-.three-cols { grid-template-columns: 1fr 1fr 1fr; }
+.two-cols {
+  grid-template-columns: 1fr 1fr;
+}
+.three-cols {
+  grid-template-columns: 1fr 1fr 1fr;
+}
 
 .form-group {
   display: flex;
@@ -293,7 +322,9 @@ label {
 }
 
 /* Inputs e Selects */
-input, textarea, select {
+input,
+textarea,
+select {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -305,7 +336,9 @@ input, textarea, select {
   width: 100%;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   outline: none;
   border-color: var(--primary);
   background-color: #fff;
@@ -368,11 +401,11 @@ option {
 
 .btn-cancel:hover {
   background-color: var(--bg-input);
-  border-color: #D1D5DB;
+  border-color: #d1d5db;
 }
 
 .btn-save {
-  background-color: #2563EB; /* Usa a variável azul definida no :root */
+  background-color: #2563eb; /* Usa a variável azul definida no :root */
   border: none;
   color: white; /* Texto branco para contraste */
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); /* Sombra sutil para destacar */
@@ -388,16 +421,17 @@ option {
   .form-card {
     padding: 1.5rem;
   }
-  
-  .two-cols, .three-cols {
+
+  .two-cols,
+  .three-cols {
     grid-template-columns: 1fr; /* Empilha tudo em mobile */
     gap: 1rem;
   }
-  
+
   .form-actions {
     flex-direction: column-reverse; /* Salvar em cima, Cancelar embaixo */
   }
-  
+
   .btn {
     width: 100%;
   }
