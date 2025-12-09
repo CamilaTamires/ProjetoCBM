@@ -23,9 +23,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-741*gymc2=sf!&-=7)8oj6x0u9&c#8m38w6a7mf6am7io4q9p@'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['cbm-back-f3erdef8czfvhzgu.centralus-01.azurewebsites.net', 
+    '127.0.0.1', 
+    'localhost']
 
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -148,3 +150,6 @@ DJOSER = {
         'current_user': 'core.serializers.custom_user.CustomUserSerializer',
     },
 }
+
+# Adiciona o protocolo HTTPS ao domínio do Azure
+CSRF_TRUSTED_ORIGINS = ['https://cbm-back-f3erdef8czfvhzgu.centralus-01.azurewebsites.net']
