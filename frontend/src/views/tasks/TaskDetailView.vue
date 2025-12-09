@@ -157,8 +157,9 @@ const descriptionText = computed(() => task.value?.description || 'Sem descriç�
         <nav class="nav-links">
           <router-link to="/" class="nav-item">Dashboard</router-link>
           <a class="nav-item active">Chamado</a>
-          <router-link to="/ativos" class="nav-item">Ativos</router-link>
-          <a href="#" class="nav-item">Relatórios</a>
+          <router-link to="/equipments" class="nav-item">Ativos</router-link>
+          <router-link to="/reports" class="nav-item">Relatórios</router-link>
+          
         </nav>
       </div>
 
