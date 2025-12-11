@@ -44,18 +44,7 @@ class TaskView(viewsets.ModelViewSet):
 
     # Para atribuir o criador automaticamente
     def perform_create(self, serializer):
-        # 1. Salva a Tarefa e define o criador
-        task = serializer.save(creator_FK=self.request.user)
-        
-        # 2. Lógica para definir o status inicial
-        # Verifica se veio lista de responsáveis no payload
-        has_responsibles = len(self.request.data.get('responsibles_FK', [])) > 0
-        status_inicial = 'OPEN' if has_responsibles else 'WAITING_RESPONSIBLE'
-        
-        # 3. Cria o Status automaticamente (O usuário não precisa de permissão aqui, o sistema faz)
-        TaskStatus.objects.create(
-            task_FK=task,
-            status=status_inicial,
-            comment="Chamado criado.",
-            user_FK=self.request.user
-        )   
+    # Apenas salva a tarefa e define quem criou.
+    # A responsabilidade de criar o primeiro status (com comentário e anexo)
+    # agora é inteiramente do Frontend.
+        serializer.save(creator_FK=self.request.user)

@@ -163,15 +163,12 @@ async function handleSubmit() {
               </div>
 
               <div class="form-group">
-                <label for="responsibles_FK">Atribuir Técnico (Opcional)</label>
+                <label for="responsibles_FK">Atribuir Técnico</label>
                 <select id="responsibles_FK" v-model="taskData.responsibles_FK" multiple class="multi-select">
                   <option v-for="user in technicians" :key="user.id" :value="user.id">
                     {{ user.name }}
                   </option>
                 </select>
-                <small class="hint">
-                    Se não selecionar, o status será "Aguardando Responsável".
-                </small>
               </div>
             </div>
           </div>

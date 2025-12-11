@@ -90,10 +90,6 @@ async function handleLogin() {
             />
           </div>
 
-          <div class="form-footer">
-            <a href="#" class="forgot-password">Esqueceu a senha?</a>
-          </div>
-
           <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
           <button type="submit" class="submit-btn" :disabled="isLoading">

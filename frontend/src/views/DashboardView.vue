@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import api from '../services/api'
 import type { Task, TaskStatus, TaskStatusValue } from '../types/api'
+import logoImage from '../assets/logocbmtest.png'
 
 // --- Estado do Componente ---
 const tasks: Ref<Task[]> = ref([])
@@ -249,7 +250,8 @@ function cancelStatusUpdate() {
   <div class="app-layout">
     <header class="header">
       <div class="header-left">
-        <div class="brand-logo">MANGE_TECH</div>
+        <img :src="logoImage" alt="Logo CBM TECH" class="brand-logo-img" /> 
+        <div class="brand-logo">CBM TECH</div>
         <nav class="nav-links">
           <router-link to="/" class="nav-item active">Dashboard</router-link>
           <router-link to="/equipments" class="nav-item">Ativos</router-link>
@@ -259,9 +261,9 @@ function cancelStatusUpdate() {
 
       <div class="header-right">
         <div class="user-menu">
-          <button class="icon-btn disabled" title="Em breve">
+          <!-- <button class="icon-btn disabled" title="Em breve">
             <i class="fas fa-bell"></i>
-          </button>
+          </button> -->
           <div class="user-info" v-if="user">
             <span class="user-name">{{ user.name }}</span>
             <img src="../assets/user.png" alt="Avatar" class="user-avatar" />
@@ -352,7 +354,7 @@ function cancelStatusUpdate() {
 
           <div class="search-group">
             <i class="fas fa-search"></i>
-            <input v-model="searchQuery" type="text" placeholder="Filtrar chamados..." />
+            <input v-model="searchQuery" type="text" placeholder="Filtrar chamados (Ativo ou ID)" />
           </div>
         </div>
 
@@ -525,13 +527,13 @@ function cancelStatusUpdate() {
 /* --- HEADER --- */
 .header {
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e1e4e8;;
   padding: 0 2rem;
   height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
+  position: relative;
   top: 0;
   z-index: 50;
 }
@@ -546,6 +548,17 @@ function cancelStatusUpdate() {
   font-weight: 800;
   font-size: 1.25rem;
   letter-spacing: -0.5px;
+  margin-left: -2.5rem;
+  line-break: anywhere;
+}
+
+.brand-logo-img {
+  width: 50px;
+  height: 60px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: block; 
 }
 
 .nav-links {

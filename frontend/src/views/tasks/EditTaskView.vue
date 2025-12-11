@@ -197,7 +197,7 @@ async function handleSubmit() {
               </div>
 
               <div class="form-group">
-                <label for="responsibles_FK">Responsáveis Técnicos</label>
+                <label for="responsibles_FK">Responsável Técnico</label>
                 <!-- Aqui alteramos para usar a computed property 'technicians' -->
                 <select
                   id="responsibles_FK"
@@ -209,7 +209,6 @@ async function handleSubmit() {
                     {{ user.name }}
                   </option>
                 </select>
-                <small class="hint">Segure Ctrl (ou Cmd) para selecionar múltiplos.</small>
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import api from '../services/api'
 import type { Equipment } from '../types/api'
+import logoImage from '../assets/logocbmtest.png'
 
 // --- Estado do Componente ---
 const equipments: Ref<Equipment[]> = ref([])
@@ -115,7 +116,8 @@ async function handleLogout() {
   <div class="app-container">
     <header class="header">
       <div class="header-left">
-        <div class="brand-logo">MANGE_TECH</div>
+        <img :src="logoImage" alt="Logo CBM TECH" class="brand-logo-img" /> 
+        <div class="brand-logo">CBM TECH</div>
         <nav class="nav-links">
           <router-link to="/" class="nav-item">Dashboard</router-link>
           <router-link to="/equipments" class="nav-item active">Ativos</router-link>
@@ -125,9 +127,9 @@ async function handleLogout() {
 
       <div class="header-right">
         <div class="user-menu">
-          <button class="icon-btn disabled" title="Em breve">
+          <!-- <button class="icon-btn disabled" title="Em breve">
             <i class="fas fa-bell"></i>
-          </button>
+          </button> -->
           <div class="user-info" v-if="user">
             <span class="user-name">{{ user.name }}</span>
             <img src="@/assets/user.png" alt="Avatar" class="user-avatar" />
@@ -290,13 +292,13 @@ async function handleLogout() {
 /* HEADER */
 .header {
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e1e4e8;;
   padding: 0 2rem;
   height: 64px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: sticky;
+  position: relative;
   top: 0;
   z-index: 50;
 }
@@ -309,6 +311,17 @@ async function handleLogout() {
   font-weight: 800;
   font-size: 1.25rem;
   letter-spacing: -0.5px;
+  margin-left: -2.5rem;
+  line-break: anywhere;
+}
+
+.brand-logo-img {
+  width: 50px;
+  height: 60px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: block; 
 }
 .nav-links {
   display: none;
@@ -424,8 +437,8 @@ async function handleLogout() {
 }
 
 .primary-btn {
-  background-color: var(--bg-app);
-  color: var(--text-muted);
+  background-color: #f3f4f6;
+  color: #6b7280;;
   border: 1px solid var(--border);
   text-decoration: none;
   padding: 0.75rem 1.5rem;

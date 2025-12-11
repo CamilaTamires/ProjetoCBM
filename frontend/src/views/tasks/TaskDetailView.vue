@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '../../services/api'
 import type { Task, TaskStatus, TaskStatusValue } from '../../types/api'
 import { useAuth } from '../../stores/auth'
+import logoImage from '../../assets/logocbmtest.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -153,7 +154,8 @@ const descriptionText = computed(() => task.value?.description || 'Sem descri√ß√
   <div class="app-container">
     <header class="header">
       <div class="header-left">
-        <div class="brand-logo">MANGE_TECH</div>
+        <img :src="logoImage" alt="Logo CBM TECH" class="brand-logo-img" /> 
+        <div class="brand-logo">CBM TECH</div>
         <nav class="nav-links">
           <router-link to="/" class="nav-item">Dashboard</router-link>
           <a class="nav-item active">Chamado</a>
@@ -168,9 +170,6 @@ const descriptionText = computed(() => task.value?.description || 'Sem descri√ß√
           <span class="user-name">{{ user.name }}</span>
           <img src="../../assets/user.png" alt="Avatar" class="user-avatar" />
         </div>
-        <button @click="handleLogout" class="logout-btn" title="Sair">
-          <i class="fas fa-sign-out-alt"></i>
-        </button>
       </div>
     </header>
 
@@ -246,7 +245,7 @@ const descriptionText = computed(() => task.value?.description || 'Sem descri√ß√
                             :src="
                               img.image.startsWith('http')
                                 ? img.image
-                                : `http://localhost:8000${img.image}`
+                                : `https://cbm-back-f3erdef8czfvhzgu.centralus-01.azurewebsites.net${img.image}`
                             "
                             alt="Evid√™ncia"
                           />
@@ -346,7 +345,7 @@ const descriptionText = computed(() => task.value?.description || 'Sem descri√ß√
   --badge-gray-bg: #f3f4f6;
   --badge-gray-tx: #374151;
 
-  background-color: var(--bg-app);
+  background-color: #ffffff;
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
   color: var(--text-main);
@@ -369,14 +368,26 @@ const descriptionText = computed(() => task.value?.description || 'Sem descri√ß√
 .header-left {
   display: flex;
   align-items: center;
-  gap: 2.5rem;
+  gap: 3rem;
 }
 .brand-logo {
   font-weight: 800;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  letter-spacing: -0.5px;
+  margin-left: -2.5rem;
+  line-break: anywhere;
+}
+
+.brand-logo-img {
+  width: 50px;
+  height: 60px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: block; 
 }
 .nav-links {
-  display: none;
+  display: flex;
   gap: 1.5rem;
 }
 .nav-item {
@@ -384,13 +395,14 @@ const descriptionText = computed(() => task.value?.description || 'Sem descri√ß√
   color: var(--text-muted);
   font-weight: 500;
   font-size: 0.9rem;
-  transition: 0.2s;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
 }
 .nav-item:hover,
 .nav-item.active {
   color: var(--text-main);
-  border-bottom: 2px solid var(--text-main);
-  padding-bottom: 19px;
+  border-bottom-color: var(--text-main);
 }
 @media (min-width: 768px) {
   .nav-links {

@@ -6,6 +6,14 @@ import api from '@/services/api';
 const router = useRouter();
 const { clearToken } = useAuth();
 
+// Ao atualizar, substituir link do apk correto e atualizado.
+const APK_DOWNLOAD_URL = 'https://drive.google.com/file/d/1O5XRc7ZleJAwp7WKJBv_BDFlGJRjMulv/view?usp=drive_link'; // <--- SUBSTITUA ESTE LINK
+// ====================================================================
+
+// URL para gerar o QR Code (usando uma API pública para demonstração)
+// O QR code apontará para o URL definido acima.
+const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(APK_DOWNLOAD_URL)}`;
+
 async function handleLogout() {
   try {
     await api.logout();
@@ -26,12 +34,16 @@ async function handleLogout() {
       </div>
       <h1>Acesso Restrito</h1>
       <p>
-        A versão web do <strong>MANGE_TECH</strong> é exclusiva para <strong>Técnicos</strong>.
+        A versão web do <strong>CBM TECH</strong> é exclusiva para <strong>Técnicos</strong>.
       </p>
       <p class="sub-text">
         Como colaborador, por favor utilize o nosso aplicativo móvel para abrir e acompanhar seus chamados.
       </p>
-      
+
+      <div class="qr-code-wrapper">
+        <p class="qr-code-text">Baixe o aplicativo para Android:</p>
+        <img :src="qrCodeUrl" alt="QR Code para download do APK" class="qr-code-img" />
+      </div>
       <button @click="handleLogout" class="logout-btn">
         Voltar para o Login
       </button>
@@ -85,6 +97,35 @@ p {
   font-size: 0.9rem;
   margin-bottom: 2rem;
 }
+
+/* NOVOS ESTILOS PARA O QR CODE */
+.qr-code-wrapper {
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #E5E7EB; /* Divisor claro */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-code-text {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.qr-code-img {
+  width: 150px;
+  height: 150px;
+  border: 5px solid #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  /* Garante que a imagem é tratada como bloco para centralização e dimensões corretas */
+  display: block; 
+}
+/* FIM NOVOS ESTILOS */
 
 .logout-btn {
   background-color: #10B981;

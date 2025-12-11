@@ -9,7 +9,7 @@ import type {
 } from '../types/api'
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: 'https://cbm-back-f3erdef8czfvhzgu.centralus-01.azurewebsites.net/api/',
 })
 
 // --- Interceptor para adicionar o token de autenticação ---
